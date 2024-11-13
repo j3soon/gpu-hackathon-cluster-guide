@@ -64,6 +64,9 @@ If some of your services (such as Jupyter Lab) are suddenly not responding, chec
 - SSH Tunneling with MobaXterm?
   - I personlly perfer using command line for SSH tunneling, but if you prefer GUI, see: <https://superuser.com/a/1602218>.
 
+- `E: Unable to locate package` during `apt install`?
+  - Run `apt update` first.
+
 ## Questions
 
 - For general questions, tag `@Johnson Sun` in the [#cluster-support](https://nchc-open-hackathon.slack.com/archives/C07U5R5ULSY) channel on Slack
