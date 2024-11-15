@@ -67,6 +67,12 @@ If some of your services (such as Jupyter Lab) are suddenly not responding, chec
 - `E: Unable to locate package` during `apt install`?
   - Run `apt update` first.
 
+- `Remote Host Identification Has Changed` during SSH after container update.
+  - Follow the error message's suggestion and run:
+    ```
+    ssh-keygen -f "~/.ssh/known_hosts" -R "[<IP>]:<PORT>"
+    ```
+
 ## Questions
 
 - For general questions, tag `@Johnson Sun` in the [#cluster-support](https://nchc-open-hackathon.slack.com/archives/C07U5R5ULSY) channel on Slack
