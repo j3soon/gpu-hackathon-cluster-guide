@@ -1,0 +1,10 @@
+[nodes]
+<NODE_1_HOSTNAME>
+<NODE_2_HOSTNAME>
+
+[nodes:vars]
+data_storage_path=/raid/j3soon
+data_symlink_path={{ ansible_env.HOME }}/j3soon
+docker_data_root=/raid/docker-root-A100
+
+[containers]

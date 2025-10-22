@@ -1,0 +1,7 @@
+Team ID,Team Name,Cluster,#GPUs,Docker Image,Container Name,IP,Port,GPU IDs,Services,CPU IDs,Mem IDs,Memory,Ulimit Stack,SSH Password,Team Leader,Mentors,Notes
+0,Example Team A,Yes,8,nvcr.io/nvidia/pytorch:25.09-py3,,10.0.0.101,30000,"0,1,2,3,4,5,6,7",ssh,,,,,,,,
+1,Example Team B,Yes,1,nvcr.io/nvidia/pytorch:25.09-py3,team-01-pytorch1,10.0.0.102,30000,0,"ssh, jupyter-lab","0-15,128-143",0,120g,,,,,
+1,Example Team B,Yes,2,nvcr.io/nvidia/pytorch:25.09-py3,team-01-pytorch2,10.0.0.102,30001,"1,2",ssh,"16-31,144-159,32-47,160-175","1,2",240g,-1,,,,
+1,Example Team B,Yes,2,nvcr.io/nvidia/pytorch:25.09-py3,team-01-pytorch3,10.0.0.102,30002,"1,2","ssh, jupyter-lab","16-31,144-159,32-47,160-175","1,2",240g,-1,,,,Sharing GPU with pytorch2
+2,Example Team C,On-Premise,,,,,,,,,,,,,,,
+3,Example Team D,External,,,,,,,,,,,,,,,

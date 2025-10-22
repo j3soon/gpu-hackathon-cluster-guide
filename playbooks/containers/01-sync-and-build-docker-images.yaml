@@ -1,0 +1,120 @@
+---
+- name: Build Docker images for teams based on teams.csv
+  hosts: localhost
+  gather_facts: no
+  vars:
+    project_root: "{{ playbook_dir }}/../.."
+    teams_csv: "{{ project_root }}/data/teams.csv"
+  
+  tasks:
+    - name: Check if teams.csv exists
+      stat:
+        path: "{{ teams_csv }}"
+      register: teams_csv_stat
+      
+    - name: Fail if teams.csv doesn't exist
+      fail:
+        msg: "teams.csv not found at {{ teams_csv }}. Please run `python3 compile.py` first."
+      when: not teams_csv_stat.stat.exists
+
+    - name: Read and parse teams.csv
+      community.general.read_csv:
+        path: "{{ teams_csv }}"
+      register: teams_data
+
+    - name: Process teams data and group by host
+      set_fact:
+        host_containers: >-
+          {{
+            teams_data.list |
+            selectattr('Cluster', 'in', ['Yes', 'Y', 'yes', 'y']) |
+            groupby('IP') | list
+          }}
+
+    - name: Display hosts and containers to be built
+      debug:
+        msg: "Host {{ item.0 }}: {{ item.1 | map(attribute='Container Name') | list }}"
+      loop: "{{ host_containers }}"
+      when: host_containers | length > 0
+
+- name: Copy Dockerfiles and build images on remote hosts
+  hosts: nodes
+  gather_facts: yes
+  vars:
+    project_root: "{{ playbook_dir }}/../.."
+    teams_csv: "{{ project_root }}/data/teams.csv"
+    docker_dir: "{{ project_root }}/data/dockerfiles"
+    remote_docker_dir: "{{ data_symlink_path }}/dockerfiles"
+    scripts_dir: "{{ project_root }}/data/scripts"
+    remote_scripts_dir: "{{ data_symlink_path }}/scripts"
+  
+  tasks:
+    - name: Read and parse teams.csv on controller
+      community.general.read_csv:
+        path: "{{ teams_csv }}"
+      register: teams_data
+      delegate_to: localhost
+      run_once: true
+
+    - name: Filter containers for this host
+      set_fact:
+        host_specific_containers: >-
+          {{
+            teams_data.list |
+            selectattr('Cluster', 'in', ['Yes', 'Y', 'yes', 'y']) |
+            selectattr('IP', 'equalto', inventory_hostname) |
+            list
+          }}
+
+    - name: Display containers to build on this host
+      debug:
+        msg: "Building {{ host_specific_containers | length }} containers on {{ inventory_hostname }}"
+      when: host_specific_containers | length > 0
+
+    - name: Remove all contents from remote docker build directory
+      shell: find "{{ remote_docker_dir }}" -mindepth 1 -delete
+      when: host_specific_containers | length > 0
+      ignore_errors: yes
+
+    - name: Copy entire dockerfiles directory to remote host
+      copy:
+        src: "{{ docker_dir }}/"
+        dest: "{{ remote_docker_dir }}/"
+        mode: '0644'
+      when: host_specific_containers | length > 0
+
+    - name: Remove all contents from remote scripts directory
+      shell: find "{{ remote_scripts_dir }}" -mindepth 1 -delete
+      when: host_specific_containers | length > 0
+      ignore_errors: yes
+
+    - name: Copy entire scripts directory to remote host
+      copy:
+        src: "{{ scripts_dir }}/"
+        dest: "{{ remote_scripts_dir }}/"
+        mode: '0755'
+      when: host_specific_containers | length > 0
+
+    # Don't use `community.docker.docker_image`, as it somehow have issues
+    # properly handling the heredoc feature in Dockerfile. Files written
+    # with heredoc will somehow be empty.
+    - name: Build Docker images on remote host (shell version)
+      shell: |
+        docker build \
+          --pull \
+          --build-arg SSH_PASSWORD="{{ item['SSH Password'] }}" \
+          -t "{{ item['Container Name'] if item['Container Name'] else 'team-' + '%02d' | format(item['Team ID'] | int) }}:latest" \
+          -f "{{ remote_docker_dir }}/team-{{ '%02d' | format(item['Team ID'] | int) }}/Dockerfile_{{ item['Container Name'] if item['Container Name'] else 'team-' + '%02d' | format(item['Team ID'] | int) }}" \
+          "{{ remote_docker_dir }}/team-{{ '%02d' | format(item['Team ID'] | int) }}"
+      loop: "{{ host_specific_containers }}"
+      when: host_specific_containers | length > 0
+      register: build_results
+
+    - name: Display build results
+      debug:
+        msg: "Successfully built {{ item.item['Container Name'] }} from {{ item.item['Docker Image'] }}"
+      loop: "{{ build_results.results }}"
+      when: 
+        - build_results is defined
+        - build_results.results is defined
+        - item.changed or item.failed == false

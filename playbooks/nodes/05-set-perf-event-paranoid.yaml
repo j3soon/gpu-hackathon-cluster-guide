@@ -1,0 +1,29 @@
+---
+- name: Set perf_event_paranoid to 2
+  hosts: nodes
+  become: yes
+  tasks:
+    # Ref: https://docs.nvidia.com/nsight-systems/InstallationGuide/index.html#requirements-for-x86-64-and-arm-sbsa-targets-on-linux
+    - name: Check current perf_event_paranoid value
+      ansible.builtin.slurp:
+        src: /proc/sys/kernel/perf_event_paranoid
+      register: current_perf_paranoid
+
+    - name: Display current value
+      ansible.builtin.debug:
+        msg: "Current perf_event_paranoid value: {{ (current_perf_paranoid.content | b64decode).strip() }}"
+
+    - name: Set perf_event_paranoid to 2 if not already set
+      ansible.builtin.shell: echo 2 > /proc/sys/kernel/perf_event_paranoid
+      when: (current_perf_paranoid.content | b64decode).strip() != '2'
+      register: perf_paranoid_result
+
+    - name: Verify perf_event_paranoid value after change
+      ansible.builtin.slurp:
+        src: /proc/sys/kernel/perf_event_paranoid
+      register: new_perf_paranoid
+      when: perf_paranoid_result is changed
+
+    - name: Display result
+      ansible.builtin.debug:
+        msg: "perf_event_paranoid {{ 'was changed to' if perf_paranoid_result is changed else 'is already set to' }} 2"

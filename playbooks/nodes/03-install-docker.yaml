@@ -1,0 +1,151 @@
+---
+- name: Install Docker and NVIDIA Container Toolkit
+  hosts: nodes
+  vars:
+    arch_map:
+      x86_64: amd64
+      aarch64: arm64
+  gather_facts: yes
+  tasks:
+    # Ref: https://github.com/j3soon/ansible-playbooks
+    # Ref: https://docs.docker.com/engine/install/ubuntu/
+    - name: Uninstall old versions of Docker conflicting packages
+      become: true
+      apt:
+        name:
+          - docker.io
+          - docker-doc
+          - docker-compose
+          - docker-compose-v2
+          - podman-docker
+          - containerd
+          - runc
+        state: absent
+        purge: true
+
+    - name: Install required packages
+      become: true
+      apt:
+        name:
+          - ca-certificates
+          - curl
+        update_cache: true
+
+    - name: Create directory for Docker GPG key
+      become: true
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker GPG key
+      become: true
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    - name: Add Docker repository
+      become: true
+      apt_repository:
+        repo: "deb [arch={{ arch_map[ansible_architecture] }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        filename: docker
+        update_cache: true
+
+    - name: Install Docker packages
+      become: true
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: latest  # Update to the latest version
+        update_cache: true
+
+    - name: Ensure docker group exists
+      become: true
+      group:
+        name: docker
+        state: present
+
+    - name: Add user to docker group
+      become: true
+      user:
+        name: "{{ ansible_facts.user_id }}"
+        groups: docker
+        append: true
+
+    # References:
+    # - https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+    # - https://github.com/NVIDIA/ansible-role-nvidia-docker
+
+    # Although this could be simplified by directly storing as `.asc` file,
+    # I prefer to keep the `.gpg` extension to faithfully reflect the
+    # official instructions so as to prevent potential future issues.
+    - name: Check if (dearmored) GPG key exists
+      stat:
+        path: /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+      register: nvidia_container_toolkit_keyring_gpg
+    - name: Download GPG key if not dearmored
+      get_url:
+        url: https://nvidia.github.io/libnvidia-container/gpgkey
+        dest: /tmp/nvidia-container-toolkit-keyring.gpg
+        mode: '0644'
+      when: not nvidia_container_toolkit_keyring_gpg.stat.exists
+    - name: Dearmor the GPG key if not already done
+      become: true
+      shell: |
+        gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg /tmp/nvidia-container-toolkit-keyring.gpg
+      when: not nvidia_container_toolkit_keyring_gpg.stat.exists
+
+    - name: Check if repository list exists
+      stat:
+        path: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+      register: nvidia_container_toolkit_list
+    - name: Download repository list
+      get_url:
+        url: https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list
+        dest: /tmp/nvidia-container-toolkit.list
+      when: not nvidia_container_toolkit_list.stat.exists
+    - name: Modify the repository list
+      replace:
+        path: /tmp/nvidia-container-toolkit.list
+        regexp: 'deb https://'
+        replace: 'deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://'
+      when: not nvidia_container_toolkit_list.stat.exists
+    - name: Write the modified repository list to sources.list.d
+      become: true
+      copy:
+        remote_src: true
+        src: /tmp/nvidia-container-toolkit.list
+        dest: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+        owner: root
+        group: root
+        mode: '0644'
+      when: not nvidia_container_toolkit_list.stat.exists
+
+    - name: Install nvidia-container-toolkit
+      become: true
+      apt:
+        name: nvidia-container-toolkit
+        update_cache: true
+      register: install_nvidia_docker
+
+    - name: Check if Docker daemon configuration exists
+      stat:
+        path: /etc/docker/daemon.json
+      register: docker_daemon_json
+    - name: Run nvidia container toolkit
+      become: true
+      command: nvidia-ctk runtime configure --runtime=docker
+      when: not docker_daemon_json.stat.exists
+
+    - name: Restart docker
+      become: true
+      systemd:
+        name: docker
+        daemon_reload: true
+        state: restarted
+      when: install_nvidia_docker.changed

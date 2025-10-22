@@ -1,0 +1,76 @@
+---
+- name: Collect node information
+  hosts: nodes
+  gather_facts: yes
+  tasks:
+    - name: Create output directory
+      file:
+        path: "./output"
+        state: directory
+      delegate_to: localhost
+      run_once: yes
+
+    - name: Run df -h command
+      shell: df -h
+      register: df_output
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Run docker images command
+      shell: docker images
+      register: docker_images_output
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Run docker ps -a command
+      shell: docker ps -a
+      register: docker_ps_output
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Read docker daemon.json configuration
+      shell: cat /etc/docker/daemon.json
+      register: docker_daemon_output
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Check perf_event_paranoid setting
+      shell: cat /proc/sys/kernel/perf_event_paranoid
+      register: perf_event_paranoid_output
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Save df -h output to local file
+      copy:
+        content: "{{ df_output.stdout }}"
+        dest: "./output/{{ inventory_hostname }}_df-h_{{ ansible_date_time.iso8601_basic_short }}.txt"
+      delegate_to: localhost
+      ignore_errors: yes
+
+    - name: Save docker images output to local file
+      copy:
+        content: "{{ docker_images_output.stdout }}"
+        dest: "./output/{{ inventory_hostname }}_docker-images_{{ ansible_date_time.iso8601_basic_short }}.txt"
+      delegate_to: localhost
+      ignore_errors: yes
+
+    - name: Save docker ps -a output to local file
+      copy:
+        content: "{{ docker_ps_output.stdout }}"
+        dest: "./output/{{ inventory_hostname }}_docker-ps-a_{{ ansible_date_time.iso8601_basic_short }}.txt"
+      delegate_to: localhost
+      ignore_errors: yes
+
+    - name: Save docker daemon.json output to local file
+      copy:
+        content: "{{ docker_daemon_output.stdout }}"
+        dest: "./output/{{ inventory_hostname }}_docker-daemon_{{ ansible_date_time.iso8601_basic_short }}.txt"
+      delegate_to: localhost
+      ignore_errors: yes
+
+    - name: Save perf_event_paranoid output to local file
+      copy:
+        content: "{{ perf_event_paranoid_output.stdout }}"
+        dest: "./output/{{ inventory_hostname }}_perf-event-paranoid_{{ ansible_date_time.iso8601_basic_short }}.txt"
+      delegate_to: localhost
+      ignore_errors: yes

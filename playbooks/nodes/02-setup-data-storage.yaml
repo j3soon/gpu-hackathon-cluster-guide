@@ -1,0 +1,19 @@
+---
+- name: Setup data storage
+  hosts: nodes
+  gather_facts: yes
+  tasks:
+    - name: Create data directory
+      become: yes
+      file:
+        path: "{{ data_storage_path }}"
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+        mode: '0755'
+
+    - name: Create symlink to data directory
+      file:
+        src: "{{ data_storage_path }}"
+        dest: "{{ data_symlink_path }}"
+        state: link

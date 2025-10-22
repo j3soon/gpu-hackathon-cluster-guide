@@ -1,0 +1,34 @@
+---
+- name: Gather GPU and Jupyter Lab information
+  hosts: containers
+  gather_facts: no
+  tasks:
+    - name: Check NVIDIA GPU UUID
+      shell: nvidia-smi --query-gpu=uuid --format=csv
+      register: gpu_info
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display GPU UUIDs
+      debug:
+        msg: "{{ inventory_hostname }} GPU UUIDs:\n{{ gpu_info.stdout }}"
+
+    - name: Check Jupyter Lab version
+      shell: jupyter lab --version
+      register: jupyter_version
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display Jupyter Lab version
+      debug:
+        msg: "{{ inventory_hostname }} Jupyter Lab version:\n{{ jupyter_version.stdout }}"
+
+    - name: Read README.txt content
+      slurp:
+        path: /workspace/README.txt
+      register: readme_content
+      ignore_errors: yes
+
+    - name: Display README.txt content
+      debug:
+        msg: "{{ inventory_hostname }} /workspace/README.txt content:\n{{ (readme_content.content | b64decode) }}"

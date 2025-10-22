@@ -1,0 +1,99 @@
+---
+- name: Setup Docker
+  hosts: nodes
+  gather_facts: yes
+  tasks:
+    - name: Check if Docker daemon configuration exists
+      stat:
+        path: /etc/docker/daemon.json
+      register: docker_daemon_json
+
+    - name: Run nvidia container toolkit
+      become: true
+      command: nvidia-ctk runtime configure --runtime=docker
+      register: nvidia_ctk_result
+      when: not docker_daemon_json.stat.exists
+
+    - name: Get current Docker root directory
+      shell: docker info -f '{% raw %}{{ .DockerRootDir}}{% endraw %}'
+      register: docker_current_root
+      changed_when: false
+      ignore_errors: yes
+
+    # Ref: www.ibm.com/docs/en/z-logdata-analytics/5.1.0?topic=software-relocating-docker-root-directory
+    - name: Check if data-root needs to be changed
+      set_fact:
+        need_docker_root_change: "{{ docker_data_root is defined and docker_current_root.stdout != docker_data_root }}"
+
+    - name: Stop Docker service
+      become: true
+      systemd:
+        name: docker
+        state: stopped
+      when: need_docker_root_change | bool
+
+    - name: Read existing Docker daemon.json
+      slurp:
+        src: /etc/docker/daemon.json
+      register: daemon_json_content
+      when: need_docker_root_change | bool and docker_daemon_json.stat.exists
+      ignore_errors: yes
+
+    - name: Parse existing daemon.json
+      set_fact:
+        existing_daemon_config: "{{ daemon_json_content.content | b64decode | from_json }}"
+      when: need_docker_root_change | bool and docker_daemon_json.stat.exists and daemon_json_content is defined and daemon_json_content.content is defined
+
+    - name: Set default daemon config if not exists
+      set_fact:
+        existing_daemon_config: {}
+      when: need_docker_root_change | bool and (not docker_daemon_json.stat.exists or existing_daemon_config is not defined)
+
+    - name: Merge data-root into daemon config
+      set_fact:
+        merged_daemon_config: "{{ existing_daemon_config | combine({'data-root': docker_data_root}) }}"
+      when: need_docker_root_change | bool
+
+    - name: Configure Docker daemon.json with data-root
+      become: true
+      copy:
+        content: "{{ merged_daemon_config | to_nice_json }}\n"
+        dest: /etc/docker/daemon.json
+        mode: '0644'
+      when: need_docker_root_change | bool
+      register: daemon_json_updated
+
+    - name: Start Docker service
+      become: true
+      systemd:
+        name: docker
+        daemon_reload: true
+        state: started
+      when: need_docker_root_change | bool
+
+    - name: Verify Docker root directory change
+      shell: docker info -f '{% raw %}{{ .DockerRootDir}}{% endraw %}'
+      register: docker_verified_root
+      changed_when: false
+      when: need_docker_root_change | bool
+
+    - name: Display Docker root directory verification
+      debug:
+        msg: "Docker root directory is now: {{ docker_verified_root.stdout }}"
+      when: need_docker_root_change | bool and docker_verified_root.stdout is defined
+
+    - name: Assert Docker root directory matches expected value
+      assert:
+        that:
+          - docker_verified_root.stdout == docker_data_root
+        fail_msg: "Docker root directory ({{ docker_verified_root.stdout }}) does not match expected value ({{ docker_data_root }})"
+        success_msg: "Docker root directory successfully changed to {{ docker_data_root }}"
+      when: need_docker_root_change | bool and docker_verified_root.stdout is defined
+
+    - name: Restart docker for nvidia runtime configuration
+      become: true
+      systemd:
+        name: docker
+        daemon_reload: true
+        state: restarted
+      when: nvidia_ctk_result is changed and not (need_docker_root_change | bool)
