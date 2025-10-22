@@ -1,0 +1,3 @@
+[submodule "dockerfile-fragments"]
+	path = dockerfile-fragments
+	url = https://github.com/j3soon/dockerfile-fragments
