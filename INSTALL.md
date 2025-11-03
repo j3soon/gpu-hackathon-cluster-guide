@@ -12,6 +12,11 @@ This guide describes the simplest way to set up a Docker-based environment for h
 
 ## Local Environment Setup
 
+- Clone the Repository:
+  ```sh
+  git clone --recurse-submodules https://github.com/j3soon/gpu-hackathon-cluster-guide.git
+  cd gpu-hackathon-cluster-guide
+  ```
 - Python Environment  
   Install latest `uv` and create a virtual environment
   ```sh
@@ -86,7 +91,9 @@ ansible-playbook -i playbooks/inventory playbooks/nodes/05-set-perf-event-parano
 
 ## Team Container Setup
 
-Generate the Dockerfiles by filling out the team information CSV file by following the instructions from the Python script. Make sure to distribute teams evenly across nodes to ensure GPU resources can be flexibly allocated if needed. In addition, the `IP` column should be filled with the hostname or IP address filled in the `playbooks/inventory` file.
+To configure the team containers, you need to complete two files: `data/teams.csv` and `playbooks/inventory`. Run `python compile.py` to generate template versions of these files if they don't exist. The script will pause and prompt you to fill in the required information, and press Enter to continue after each edit. Once the necessary details are provided, the script will generate Docker files and related scripts automatically.
+
+Make sure to distribute teams evenly across the available nodes to optimize GPU utilization. Assigning CPU resources is optional but recommended; you can determine CPU and memory availability using `lscpu` and `free -h`. The `IP` column in `data/teams.csv` should be filled with the hostname or IP address specified for each node in the `playbooks/inventory` file.
 
 ```sh
 rm -rf ./data/dockerfiles/
@@ -101,9 +108,15 @@ Build the Docker images by running the following command for each team on their 
 ansible-playbook -i playbooks/inventory playbooks/containers/01-sync-and-build-docker-images.yaml
 ```
 
+> If you encountered `429 Too Many Requests` error, login to one of your dedicated Docker Hub personal account on the node with `docker login` and then try again. Full error message:
+> ```
+> 429 Too Many Requests - Server message: toomanyrequests: You have reached your unauthenticated pull rate limit. https://www.docker.com/increase-rate-limit
+> ```
+
 Start all containers on each node by running the following command for each node.
 
 ```sh
+# Run this initialization script only the first time. For future modifications, use the script mentioned in the next code block.
 bash ~/j3soon/scripts/init_node_<NODE_NAME>.sh
 ```
 
@@ -123,3 +136,10 @@ ansible-playbook -i playbooks/inventory playbooks/containers/02-check-docker-con
 ## Clean up
 
 After the hackathon, you can clean up the cluster environment by reversing the steps above according to the backed up information in the `output` directory.
+
+If there are no containers running on the cluster before set up, you can execute the following commands:
+
+```sh
+docker stop $(docker ps -q)
+docker rm $(docker ps -aq)
+```

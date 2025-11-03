@@ -246,33 +246,36 @@ def check_team_consistency(rows):
 
         team_name = team_rows[0][1]['Team Name'].strip()
 
-        # Check 1: All IPs should be identical
+        # Check 1: All non-empty IPs should be identical
         ips = set()
         for idx, row in team_rows:
             ip = row['IP'].strip()
-            ips.add(ip)
+            if ip:  # Only consider non-empty IP fields
+                ips.add(ip)
 
         if len(ips) > 1:
             violations.append(
                 f"⚠️  WARNING: Team '{team_name}' (ID: {team_id}) has multiple different IPs: {', '.join(sorted(ips))}"
             )
 
-        # Check 2: For cluster teams, all SSH Passwords should be identical
+        # Check 2: For cluster teams, all non-empty SSH Passwords should be identical
         ssh_passwords = set()
         for idx, row in team_rows:
             ssh_password = row['SSH Password'].strip()
-            ssh_passwords.add(ssh_password)
+            if ssh_password:  # Only consider non-empty fields
+                ssh_passwords.add(ssh_password)
 
         if len(ssh_passwords) > 1:
             violations.append(
                 f"⚠️  WARNING: Team '{team_name}' (ID: {team_id}) with Cluster='Yes' has multiple different SSH Passwords"
             )
 
-        # Check 3: All ports should be unique
+        # Check 3: All non-empty ports should be unique
         ports = defaultdict(list)
         for idx, row in team_rows:
             port = row['Port'].strip()
-            ports[port].append(idx)
+            if port:  # Only consider non-empty ports
+                ports[port].append(idx)
 
         for port, line_numbers in ports.items():
             if len(line_numbers) > 1:
@@ -280,11 +283,12 @@ def check_team_consistency(rows):
                     f"⚠️  WARNING: Team '{team_name}' (ID: {team_id}) has duplicate port '{port}' on lines: {', '.join(map(str, line_numbers))}"
                 )
 
-        # Check 4: All container names should be unique (including empty ones)
+        # Check 4: All non-empty container names should be unique
         container_names = defaultdict(list)
         for idx, row in team_rows:
             container_name = row['Container Name'].strip()
-            container_names[container_name].append(idx)
+            if container_name:  # Only consider non-empty names
+                container_names[container_name].append(idx)
 
         for container_name, line_numbers in container_names.items():
             if len(line_numbers) > 1:

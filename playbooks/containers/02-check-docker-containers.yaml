@@ -6,7 +6,6 @@
     - name: Check NVIDIA GPU UUID
       shell: nvidia-smi --query-gpu=uuid --format=csv
       register: gpu_info
-      ignore_errors: yes
       changed_when: false
 
     - name: Display GPU UUIDs
@@ -16,7 +15,6 @@
     - name: Check Jupyter Lab version
       shell: jupyter lab --version
       register: jupyter_version
-      ignore_errors: yes
       changed_when: false
 
     - name: Display Jupyter Lab version
@@ -27,7 +25,6 @@
       slurp:
         path: /workspace/README.txt
       register: readme_content
-      ignore_errors: yes
 
     - name: Display README.txt content
       debug:
