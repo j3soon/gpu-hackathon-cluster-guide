@@ -664,14 +664,14 @@ def create_dockerfiles(rows):
             # Get lines 3 to 36 (0-indexed: lines 2 to 35)
             ssh_fragment_lines = all_lines[2:36]
 
-    # Read the Jupyter Lab fragment (lines 8-23)
+    # Read the Jupyter Lab fragment (lines 8-27)
     jupyter_fragment_path = os.path.join(SCRIPT_DIR, "dockerfile-fragments", "jupyter-lab", "Dockerfile")
     jupyter_fragment_lines = []
     if os.path.exists(jupyter_fragment_path):
         with open(jupyter_fragment_path, 'r', encoding='utf-8') as f:
             all_lines = f.readlines()
-            # Get lines 8 to 23 (0-indexed: lines 7 to 22)
-            jupyter_fragment_lines = all_lines[7:23]
+            # Get lines 8 to 27 (0-indexed: lines 7 to 26)
+            jupyter_fragment_lines = all_lines[7:27]
 
     # Filter only Cluster='Yes' teams
     cluster_yes_rows = filter_cluster_yes_teams(rows)

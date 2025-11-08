@@ -93,7 +93,7 @@ ansible-playbook -i playbooks/inventory playbooks/nodes/05-set-perf-event-parano
 
 To configure the team containers, you need to complete two files: `data/teams.csv` and `playbooks/inventory`. Run `python compile.py` to generate template versions of these files if they don't exist. The script will pause and prompt you to fill in the required information, and press Enter to continue after each edit. Once the necessary details are provided, the script will generate Docker files and related scripts automatically.
 
-Make sure to distribute teams evenly across the available nodes to optimize GPU utilization. Assigning CPU resources is optional but recommended; you can determine CPU and memory availability using `lscpu` and `free -h`. The `IP` column in `data/teams.csv` should be filled with the hostname or IP address specified for each node in the `playbooks/inventory` file.
+Make sure to distribute teams evenly across the available nodes to optimize GPU utilization. Assigning CPU resources is optional but recommended; you can determine CPU and memory availability using `lscpu` and `free -h`. Also take the NUMA architecture into consideration when assigning CPU/GPU resources. The `IP` column in `data/teams.csv` should be filled with the hostname or IP address specified for each node in the `playbooks/inventory` file.
 
 ```sh
 rm -rf ./data/dockerfiles/
