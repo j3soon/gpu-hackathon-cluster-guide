@@ -137,9 +137,27 @@ ansible-playbook -i playbooks/inventory playbooks/containers/02-check-docker-con
 
 After the hackathon, you can clean up the cluster environment by reversing the steps above according to the backed up information in the `output` directory.
 
-If there are no containers running on the cluster before set up, you can execute the following commands:
+If there are no containers on the cluster before set up, you can execute the following commands:
 
 ```sh
 docker stop $(docker ps -q)
 docker rm $(docker ps -aq)
+docker system prune -a
 ```
+
+Remove all custom files:
+
+```sh
+rm ~/j3soon
+sudo rm -rf /raid/j3soon
+```
+
+Undo Nsight setup or simply reboot the machines (replace `4` with the original value):
+
+```sh
+sudo sh -c "echo 4 > /proc/sys/kernel/perf_event_paranoid"
+```
+
+Clear newly added ssh authorized_keys.
+
+Note that the docker root directory is not restored for our case.
